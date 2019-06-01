@@ -25,18 +25,21 @@ import com.streamsets.pipeline.api.ValueChooserModel;
 import com.streamsets.pipeline.api.base.configurablestage.DProcessor;
 import com.streamsets.pipeline.stage.processor.scripting.ProcessingMode;
 import com.streamsets.pipeline.stage.processor.scripting.ProcessingModeChooserValues;
+import com.streamsets.pipeline.stage.processor.scripting.config.ScriptRecordType;
+import com.streamsets.pipeline.stage.processor.scripting.config.ScriptRecordTypeValueChooser;
 
 import static com.streamsets.pipeline.api.ConfigDef.Evaluation.EXPLICIT;
 import static com.streamsets.pipeline.stage.processor.groovy.GroovyProcessor.GROOVY_ENGINE;
 import static com.streamsets.pipeline.stage.processor.groovy.GroovyProcessor.GROOVY_INDY_ENGINE;
 
 @StageDef(
-    version = 1,
+    version = 2,
     label = "Groovy Evaluator",
     description = "Processes records using Groovy",
     icon="groovy.png",
     producesEvents = true,
     flags = StageBehaviorFlags.USER_CODE_INJECTION,
+    upgrader = GroovyProcessorUpgrader.class,
     onlineHelpRefUrl ="index.html?contextID=task_asl_bpt_gv"
 )
 @ConfigGroups(Groups.class)
@@ -123,6 +126,9 @@ public class GroovyDProcessor extends DProcessor {
           "    // Check if the field is NULL_INTEGER. If so, assign a value \n" +
           "    // if(sdcFunctions.getFieldNull(record, '/null_int') == NULL_INTEGER)\n" +
           "    //    record.value['null_int'] = 123\n" +
+          "    \n" +
+          "    // Direct access to the underlying Data Collector Record. Use for read-only operations.\n" +
+          "    // fieldAttr = record.sdcRecord.get('/value').getAttribute('attr')  \n" +
           "    \n" +
           "    // Create a new record with map field \n" +
           "    // newRecord = sdcFunctions.createRecord(record.sourceId + ':newRecordId')\n" +
@@ -242,19 +248,31 @@ public class GroovyDProcessor extends DProcessor {
 
   @ConfigDef(
       required = true,
+      type = ConfigDef.Type.MODEL,
+      defaultValue = "NATIVE_OBJECTS",
+      label = "Record Type",
+      description = "Record type to use during script execution",
+      displayPosition = 10,
+      group = "ADVANCED"
+  )
+  @ValueChooserModel(ScriptRecordTypeValueChooser.class)
+  public ScriptRecordType scriptRecordType = ScriptRecordType.NATIVE_OBJECTS;
+
+  @ConfigDef(
+      required = true,
       type = ConfigDef.Type.BOOLEAN,
       defaultValue = "false",
       label = "Enable invokedynamic Compiler Option",
       description = "May improve or worsen script performance depending on use case",
-      displayPosition = 50,
-      group = "GROOVY"
+      displayPosition = 20,
+      group = "ADVANCED"
   )
   public boolean invokeDynamic = false;
 
   @Override
   protected Processor createProcessor() {
     final String engineName = invokeDynamic ? GROOVY_INDY_ENGINE : GROOVY_ENGINE;
-    return new GroovyProcessor(processingMode, script, initScript, destroyScript, engineName);
+    return new GroovyProcessor(processingMode, script, initScript, destroyScript, engineName, scriptRecordType);
   }
 
 }

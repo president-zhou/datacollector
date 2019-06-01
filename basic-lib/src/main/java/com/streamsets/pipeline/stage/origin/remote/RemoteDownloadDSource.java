@@ -23,16 +23,20 @@ import com.streamsets.pipeline.api.HideConfigs;
 import com.streamsets.pipeline.api.Source;
 import com.streamsets.pipeline.api.StageDef;
 import com.streamsets.pipeline.api.base.configurablestage.DSource;
+import com.streamsets.pipeline.lib.event.FinishedFileEvent;
+import com.streamsets.pipeline.lib.event.NewFileEvent;
+import com.streamsets.pipeline.lib.event.NoMoreDataEvent;
 
 @StageDef(
     version = 4,
-    label = "SFTP/FTP Client",
-    description = "Uses an SFTP/FTP client to read data from a URL.",
+    label = "SFTP/FTP/FTPS Client",
+    description = "Uses an SFTP/FTP/FTPS client to read data from a URL.",
     icon = "sftp-client.png",
     execution = ExecutionMode.STANDALONE,
     recordsByRef = true,
     resetOffset = true,
     producesEvents = true,
+    eventDefs = {NewFileEvent.class, FinishedFileEvent.class, NoMoreDataEvent.class},
     upgrader = RemoteDownloadSourceUpgrader.class,
     onlineHelpRefUrl ="index.html?contextID=task_lfx_fzd_5v"
 )

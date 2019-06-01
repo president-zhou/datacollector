@@ -15,9 +15,12 @@
  */
 
 package com.streamsets.pipeline.lib.util.avroorc;
+import com.google.common.collect.ImmutableMap;
+import com.streamsets.pipeline.api.Field;
 import com.streamsets.pipeline.api.Record;
 import com.streamsets.pipeline.lib.util.orcsdc.OrcToSdcRecordConverter;
 import com.streamsets.pipeline.sdk.RecordCreator;
+import com.streamsets.testing.Matchers;
 import org.apache.avro.Schema;
 import org.apache.avro.file.SeekableFileInput;
 import org.apache.avro.generic.GenericData;
@@ -28,27 +31,23 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.exec.vector.VectorizedRowBatch;
 import org.apache.orc.TypeDescription;
 import org.apache.orc.Writer;
+import org.hamcrest.Matcher;
 import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.Clock;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import static com.streamsets.testing.Matchers.dateFieldWithValue;
+import static com.streamsets.testing.Matchers.listFieldWithValues;
+import static com.streamsets.testing.Matchers.zonedDateTimeUTCFieldWithValue;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static com.streamsets.testing.Matchers.fieldWithValue;
-import static com.streamsets.testing.Matchers.mapFieldWithEntry;
 import static org.junit.Assert.assertThat;
 
 public class TestAvroToOrcRecordConverter {
@@ -120,7 +119,7 @@ public class TestAvroToOrcRecordConverter {
     avroRecord.put("first", 1);
     avroRecord.put("somedate", 17535);
 
-    Map<String, Object> subRecord = new HashMap<>();
+    GenericData.Record subRecord = new GenericData.Record(schema.getField("second").schema());
     subRecord.put("sub1", new Utf8("value1"));
     subRecord.put("sub2", 42);
 
@@ -137,122 +136,135 @@ public class TestAvroToOrcRecordConverter {
   }
 
   @Test
-  public void allTypesRecordConversion() throws IOException {
-    Path outputFilePath = new Path(createTempFile());
+  public void unionTypeConversions() throws IOException {
+    final Path outputFilePath = new Path(createTempFile());
 
-    Schema.Parser schemaParser = new Schema.Parser();
-    Schema schema = schemaParser.parse(TestAvroToOrcRecordConverter.class.getResourceAsStream(
-        "avro_schema_alltypes.json"
-    ));
+    final Schema.Parser schemaParser = new Schema.Parser();
+    final Schema schema = schemaParser.parse(TestAvroToOrcRecordConverter.class.getResourceAsStream("avro_union_types.json"));
 
-    TypeDescription orcSchema = AvroToOrcSchemaConverter.getOrcSchema(schema);
+    final TypeDescription orcSchema = AvroToOrcSchemaConverter.getOrcSchema(schema);
 
-    Writer orcWriter = AvroToOrcRecordConverter.createOrcWriter(
+    final Writer orcWriter = AvroToOrcRecordConverter.createOrcWriter(
         new Properties(),
         new Configuration(),
         outputFilePath,
         orcSchema
     );
 
-    GenericRecord avroRecord = new GenericData.Record(schema);
-    avroRecord.put("intField", 42);
-    avroRecord.put("dateField", 17535);
-    avroRecord.put("timeMillisField", 7844942);
-    avroRecord.put("timeMicrosField", 57844942331l);
-    avroRecord.put("timestampMillisField", 1515101663567l);
-    avroRecord.put("timestampMicrosField", 1515101667468441l);
-    avroRecord.put("decimalNoScaleField", new BigDecimal(7531));
-    avroRecord.put("decimalField", new BigDecimal("12345678.5432"));
-    avroRecord.put("unionField", 9876543210l);
+    final GenericRecord avroRecord1 = new GenericData.Record(schema);
+    avroRecord1.put("nullableInteger", 87);
+    avroRecord1.put("integerOrString", "someString");
+    avroRecord1.put("nullableStringOrInteger", "nonNullString");
+    avroRecord1.put("justLong", 57844942331l);
 
-    final HashMap<String, Double> mapFieldValue = new HashMap<>();
-    mapFieldValue.put("first", 85.442d);
-    mapFieldValue.put("second", 442.991d);
-    mapFieldValue.put("third", -5.66d);
-    avroRecord.put("mapField", mapFieldValue);
+    final GenericRecord avroRecord2 = new GenericData.Record(schema);
+    avroRecord2.put("nullableInteger", null);
+    avroRecord2.put("integerOrString", 16);
+    avroRecord2.put("nullableStringOrInteger", null);
+    avroRecord2.put("justLong", 758934l);
 
-    final List<String> listValues = Arrays.asList("first_item", "second_item", "third_item");
-    avroRecord.put("listField", listValues);
+    final VectorizedRowBatch batch = orcSchema.createRowBatch();
 
-    Map<String, Object> subRecord = new HashMap<>();
-    final String nestedStringValue = "nestedStringValue";
-    subRecord.put("nestedStringField", new Utf8(nestedStringValue));
-    subRecord.put("nestedFloatField", 43.21f);
-
-    avroRecord.put("recordField", subRecord);
-
-    VectorizedRowBatch batch = orcSchema.createRowBatch();
-
-    AvroToOrcRecordConverter.addAvroRecord(batch, avroRecord, orcSchema, 1000, orcWriter);
+    AvroToOrcRecordConverter.addAvroRecord(batch, avroRecord1, orcSchema, 1000, orcWriter);
+    AvroToOrcRecordConverter.addAvroRecord(batch, avroRecord2, orcSchema, 1000, orcWriter);
     orcWriter.addRowBatch(batch);
     batch.reset();
     orcWriter.close();
 
     try (OrcToSdcRecordConverter sdcRecordConverter = new OrcToSdcRecordConverter(outputFilePath)) {
 
-      Record record1 = RecordCreator.create();
+      final Record record1 = RecordCreator.create();
+      boolean populated = sdcRecordConverter.populateRecord(record1);
+      assertThat(populated, equalTo(true));
+      assertSdcRecordMatchesAvro(record1, avroRecord1, null);
+
+      final Record record2 = RecordCreator.create();
+      populated = sdcRecordConverter.populateRecord(record2);
+      assertThat(populated, equalTo(true));
+      assertSdcRecordMatchesAvro(
+          record2,
+          avroRecord2,
+          ImmutableMap.<String, Matcher<Field>>builder()
+              .put("nullableInteger", Matchers.intFieldWithNullValue())
+              .put("nullableStringOrInteger", Matchers.stringFieldWithNullValue())
+              .build()
+      );
+    }
+  }
+
+  @Test
+  public void complexConversion() throws IOException {
+
+    final Path outputFilePath = new Path(createTempFile());
+
+    final AvroToOrcRecordConverter converter = new AvroToOrcRecordConverter(
+        1000,
+        new Properties(),
+        new Configuration()
+    );
+
+    converter.convert(
+        new SeekableFileInput(new File(TestAvroToOrcRecordConverter.class.getResource("complex.avro").getFile())),
+        new Path(outputFilePath.toString())
+    );
+
+    try (OrcToSdcRecordConverter sdcRecordConverter = new OrcToSdcRecordConverter(outputFilePath)) {
+      final Record record1 = RecordCreator.create();
       boolean populated = sdcRecordConverter.populateRecord(record1);
       assertThat(populated, equalTo(true));
 
-      assertThat(record1.get("/intField"), fieldWithValue((int) avroRecord.get("intField")));
+      assertThat(record1.get("/intField"), fieldWithValue(42));
+      assertThat(record1.get("/recordField/nestedStringField"), fieldWithValue("foo"));
+      assertThat(record1.get("/recordField/nestedFloatField"), fieldWithValue(98.6f));
+      assertThat(record1.get("/recordField/nestedStringOrLong"), fieldWithValue("I'm a string!"));
+      assertThat(record1.get("/dateField"), dateFieldWithValue(new Date(1468800000l)));
+      assertThat(record1.get("/timeMillisField"), fieldWithValue(400));
+      assertThat(record1.get("/timeMicrosField"), fieldWithValue(8000l));
+      assertThat(record1.get("/timestampMillisField"), zonedDateTimeUTCFieldWithValue(788553l, 45000000l));
+      assertThat(record1.get("/timestampMicrosField"), zonedDateTimeUTCFieldWithValue(34l, 456630000l));
+      assertThat(record1.get("/decimalField"), fieldWithValue(new BigDecimal("1889.33")));
+      assertThat(record1.get("/unionField"), fieldWithValue(new byte[]{1, 2, 3, 4, 5, 6, 7, 8}));
+      assertThat(record1.get("/mapOfDoublesField/first"), fieldWithValue(100.5d));
+      assertThat(record1.get("/mapOfDoublesField/second"), fieldWithValue(202.1d));
+      assertThat(record1.get("/listOfStringsField"), listFieldWithValues("firstListItem", "secondListItem"));
+      assertThat(record1.get("/enumField"), fieldWithValue("THAT"));
 
-      // convert the "dateField" integer to equivalent java.util.Date, in terms of days from epoch
-      final LocalDate dateField = LocalDate.ofEpochDay((int) avroRecord.get("dateField"));
-      final Date adjusted = Date.from(dateField.atStartOfDay().atZone(ZoneOffset.UTC).toInstant());
-      assertThat(record1.get("/dateField"), fieldWithValue(adjusted));
+      final Record record2 = RecordCreator.create();
+      populated = sdcRecordConverter.populateRecord(record2);
+      assertThat(populated, equalTo(true));
 
-      assertThat(record1.get("/timeMillisField"), fieldWithValue((int) avroRecord.get("timeMillisField")));
-      assertThat(record1.get("/timeMicrosField"), fieldWithValue((long) avroRecord.get("timeMicrosField")));
-
-      final long timestampMillisField = (long) avroRecord.get("timestampMillisField");
-      final LocalDateTime timestampMillisLocal = LocalDateTime.ofEpochSecond(
-          timestampMillisField / 1000,
-          1000000 * (int) (timestampMillisField % 1000),
-          ZoneOffset.UTC
-      );
-
-      final ZonedDateTime timestampMillisZoned = ZonedDateTime.ofLocal(
-          timestampMillisLocal,
-          ZoneId.of(ZoneOffset.UTC.getId()),
-          ZoneOffset.UTC
-      );
-
-      assertThat(record1.get("/timestampMillisField"), fieldWithValue(timestampMillisZoned));
-
-      final long timestampMicrosField = (long) avroRecord.get("timestampMicrosField");
-      final LocalDateTime timestampMicrosLocal = LocalDateTime.ofEpochSecond(
-          timestampMicrosField / 1000000,
-          1000 * (int) (timestampMicrosField % 1000000),
-          ZoneOffset.UTC
-      );
-
-      final ZonedDateTime timestampMicrosZoned = ZonedDateTime.ofLocal(
-          timestampMicrosLocal,
-          ZoneId.of(ZoneOffset.UTC.getId()),
-          ZoneOffset.UTC
-      );
-
-      assertThat(record1.get("/timestampMicrosField"), fieldWithValue(timestampMicrosZoned));
-
-      assertThat(record1.get("/decimalNoScaleField"), fieldWithValue(
-          (BigDecimal) avroRecord.get("decimalNoScaleField")
-      ));
-
-      assertThat(record1.get("/decimalField"), fieldWithValue((BigDecimal) avroRecord.get("decimalField")));
-
-      assertThat(record1.get("/unionField"), fieldWithValue((long) avroRecord.get("unionField")));
-      mapFieldValue.forEach((k, v) -> assertThat(record1.get("/mapField"), mapFieldWithEntry(k, v)));
-
-      for (int i = 0; i < listValues.size(); i++) {
-        assertThat(record1.get(String.format("/listField[%d]", i)), fieldWithValue(listValues.get(i)));
-      }
-
-      assertThat(record1.get("/recordField/nestedStringField"), fieldWithValue(nestedStringValue));
-      assertThat(
-          record1.get("/recordField/nestedFloatField"),
-          fieldWithValue((Float) subRecord.get("nestedFloatField"))
-      );
+      assertThat(record2.get("/intField"), fieldWithValue(-783));
+      assertThat(record2.get("/recordField/nestedStringField"), fieldWithValue("bar"));
+      assertThat(record2.get("/recordField/nestedFloatField"), fieldWithValue(-15.3f));
+      assertThat(record2.get("/recordField/nestedStringOrLong"), fieldWithValue(678l));
+      assertThat(record2.get("/dateField"), dateFieldWithValue(new Date(1209600000l)));
+      assertThat(record2.get("/timeMillisField"), fieldWithValue(993));
+      assertThat(record2.get("/timeMicrosField"), fieldWithValue(12300l));
+      assertThat(record2.get("/timestampMillisField"), zonedDateTimeUTCFieldWithValue(177708l, 109000000l));
+      assertThat(record2.get("/timestampMicrosField"), zonedDateTimeUTCFieldWithValue(1192l, 408542000l));
+      assertThat(record2.get("/decimalField"), fieldWithValue(new BigDecimal("-1981.3342")));
+      assertThat(record2.get("/unionField"), fieldWithValue(new byte[]{1, 1, 2, 3, 5, 8, 13, 21}));
+      assertThat(record2.get("/mapOfDoublesField/otherFirst"), fieldWithValue(-33.09d));
+      assertThat(record2.get("/mapOfDoublesField/whatever"), fieldWithValue(18933.40d));
+      assertThat(record2.get("/listOfStringsField"), listFieldWithValues("otherList1", "otherList2", "otherList3"));
+      assertThat(record2.get("/enumField"), fieldWithValue("THE_OTHER"));
     }
+  }
 
+  private static void assertSdcRecordMatchesAvro(
+      final Record sdcRecord,
+      final GenericRecord avroRecord,
+      final Map<String, Matcher<Field>> nullFieldMatchers
+  ) {
+    for (final Schema.Field field : avroRecord.getSchema().getFields()) {
+      final Object avroValue = avroRecord.get(field.name());
+      final Field sdcField = sdcRecord.get("/" + field.name());
+      if (avroValue != null) {
+        assertThat(sdcField, fieldWithValue(avroValue));
+      } else {
+        final Matcher<Field> matcher = nullFieldMatchers.get(field.name());
+        assertThat(sdcField, matcher);
+      }
+    }
   }
 }

@@ -23,18 +23,18 @@
   <parent>
     <groupId>com.streamsets</groupId>
     <artifactId>streamsets-datacollector-root-lib</artifactId>
-    <version>3.9.0-SNAPSHOT</version>
+    <version>3.10.0-SNAPSHOT</version>
     <relativePath>../root-lib</relativePath>
   </parent>
   <artifactId>streamsets-datacollector-wholefile-converter-protolib</artifactId>
-  <version>3.9.0-SNAPSHOT</version>
+  <version>3.10.0-SNAPSHOT</version>
   <description>StreamSets Data Collector Whole File Converter ProtoLib</description>
   <name>StreamSets Data Collector Whole File Converter ProtoLib</name>
   <packaging>jar</packaging>
 
   <properties>
     <hadoop.version>2.6.0</hadoop.version>
-    <parquet.version>1.8.1</parquet.version>
+    <parquet.version>1.9.0</parquet.version>
   </properties>
 
   <dependencies>
@@ -81,6 +81,10 @@
     </dependency>
 
     <!-- Compile Dependencies -->
+    <dependency>
+      <groupId>com.streamsets</groupId>
+      <artifactId>streamsets-datacollector-commonlib</artifactId>
+    </dependency>
 
     <!-- Provided Dependencies -->
     <dependency>

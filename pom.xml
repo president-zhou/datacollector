@@ -19,7 +19,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.streamsets</groupId>
   <artifactId>streamsets-datacollector</artifactId>
-  <version>3.9.0-SNAPSHOT</version>
+  <version>3.10.0-SNAPSHOT</version>
   <description>StreamSets Data Collector</description>
   <name>StreamSets Data Collector</name>
   <packaging>pom</packaging>
@@ -90,8 +90,8 @@
     <wholefile-transformer-lib>wholefile-transformer-lib</wholefile-transformer-lib>
     <windows-lib>windows-lib</windows-lib>
     <rootProject>true</rootProject>
-    <datacollector-api.version>3.9.0-SNAPSHOT</datacollector-api.version>
-    <datacollector-spark-api.version>3.9.0-SNAPSHOT</datacollector-spark-api.version>
+    <datacollector-api.version>3.10.0-SNAPSHOT</datacollector-api.version>
+    <datacollector-spark-api.version>3.10.0-SNAPSHOT</datacollector-spark-api.version>
     <thycotic-credentialstore-lib>thycotic-credentialstore-lib</thycotic-credentialstore-lib>
   </properties>
 
@@ -171,6 +171,7 @@
     <module>sdc-kafka_0_11-common</module>
     <module>sdc-kafka_0_11</module>
     <module>sdc-kafka_1_0</module>
+    <module>sdc-kafka_2_0</module>
     <module>sdc-kafka_0_11_mapr_6_1</module>
     <module>kafka-common</module>
     <module>kafka_source-protolib</module>
@@ -185,6 +186,7 @@
     <module>jython-protolib</module>
     <module>groovy-protolib</module>
     <module>kinetica-protolib</module>
+    <module>kinetica-6_2-protolib</module>
     <module>couchbase-protolib</module>
 
     <module>elasticsearch-protolib</module>
@@ -509,6 +511,7 @@
         <cdh-spark_2_2-lib>cdh-spark_2_2-lib</cdh-spark_2_2-lib>
         <cdh-spark_2_3-lib>cdh-spark_2_3-lib</cdh-spark_2_3-lib>
         <cdh_6_0-lib>cdh_6_0-lib</cdh_6_0-lib>
+        <cdh_6_1-lib>cdh_6_1-lib</cdh_6_1-lib>
         <cdh_kafka_1_2-lib>cdh_kafka_1_2-lib</cdh_kafka_1_2-lib>
         <cdh_kafka_1_3-lib>cdh_kafka_1_3-lib</cdh_kafka_1_3-lib>
         <cdh_kafka_2_0-lib>cdh_kafka_2_0-lib</cdh_kafka_2_0-lib>
@@ -537,6 +540,7 @@
         <kinetica_6_0-lib>kinetica_6_0-lib</kinetica_6_0-lib>
         <kinetica_6_1-lib>kinetica_6_1-lib</kinetica_6_1-lib>
         <kinetica_6_2-lib>kinetica_6_2-lib</kinetica_6_2-lib>
+        <kinetica_7_0-lib>kinetica_7_0-lib</kinetica_7_0-lib>
         <mapr_5_0-lib>mapr_5_0-lib</mapr_5_0-lib>
         <mapr_5_1-lib>mapr_5_1-lib</mapr_5_1-lib>
         <mapr_5_2-lib>mapr_5_2-lib</mapr_5_2-lib>
@@ -589,6 +593,7 @@
         <module>cdh_5_15-lib</module>
         <module>cdh_5_16-lib</module>
         <module>cdh_6_0-lib</module>
+        <module>cdh_6_1-lib</module>
         <module>cdh_kafka_1_2-lib</module>
         <module>cdh_kafka_1_3-lib</module>
         <module>cdh_kafka_2_0-lib</module>
@@ -606,6 +611,7 @@
         <module>kinetica_6_0-lib</module>
         <module>kinetica_6_1-lib</module>
         <module>kinetica_6_2-lib</module>
+        <module>kinetica_7_0-lib</module>
         <module>hdp_2_2-lib</module>
         <module>hdp_2_3-lib</module>
         <module>hdp_2_3-hive1-lib</module>
@@ -657,7 +663,7 @@
         <cassandra_3-lib>cassandra_3-lib</cassandra_3-lib>
         <cdh-spark_2_1-lib>cdh-spark_2_1-lib</cdh-spark_2_1-lib>
         <cdh_5_16-lib>cdh_5_16-lib</cdh_5_16-lib>
-        <cdh_6_0-lib>cdh_6_0-lib</cdh_6_0-lib>
+        <cdh_6_1-lib>cdh_6_1-lib</cdh_6_1-lib>
         <cdh_kafka_3_1-lib>cdh_kafka_3_1-lib</cdh_kafka_3_1-lib>
         <cdh_spark_2_1_r1-lib>cdh_spark_2_1_r1-lib</cdh_spark_2_1_r1-lib>
         <couchbase_5-lib>couchbase_5-lib</couchbase_5-lib>
@@ -670,7 +676,7 @@
         <hdp_2_6-flume-lib>hdp_2_6-flume-lib</hdp_2_6-flume-lib>
         <hdp_3_1-lib>hdp_3_1-lib</hdp_3_1-lib>
         <jython_2_7-lib>jython_2_7-lib</jython_2_7-lib>
-        <kinetica_6_2-lib>kinetica_6_2-lib</kinetica_6_2-lib>
+        <kinetica_7_0-lib>kinetica_7_0-lib</kinetica_7_0-lib>
         <mapr_6_1-lib>mapr_6_1-lib</mapr_6_1-lib>
         <mapr_6_1-mep6-lib>mapr_6_1-mep6-lib</mapr_6_1-mep6-lib>
         <mapr_spark_2_1_mep_3_0-lib>mapr_spark_2_1_mep_3_0-lib</mapr_spark_2_1_mep_3_0-lib>
@@ -693,14 +699,14 @@
         <module>cassandra_3-lib</module>
         <module>cdh-spark_2_1-lib</module>
         <module>cdh_5_16-lib</module>
-        <module>cdh_6_0-lib</module>
+        <module>cdh_6_1-lib</module>
         <module>cdh_kafka_3_1-lib</module>
         <module>cdh_spark_2_1_r1-lib</module>
         <module>couchbase_5-lib</module>
         <module>elasticsearch_5-lib</module>
         <module>emr_hadoop_2_8_3-lib</module>
         <module>groovy_2_4-lib</module>
-        <module>kinetica_6_2-lib</module>
+        <module>kinetica_7_0-lib</module>
         <module>hdp_2_6-lib</module>
         <module>hdp_2_6_2-hive1-lib</module>
         <module>hdp_2_6-hive2-lib</module>
@@ -858,6 +864,29 @@
                 <descriptor>release/src/main/assemblies/java-src.xml</descriptor>
               </descriptors>
             </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+
+    <profile>
+      <id>generate-sources</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-source-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>attach-sources</id>
+                <goals>
+                  <goal>jar</goal>
+                </goals>
+              </execution>
+            </executions>
           </plugin>
         </plugins>
       </build>

@@ -15,15 +15,37 @@
  */
 package com.streamsets.pipeline.stage.origin.jdbc.table;
 
+import com.streamsets.pipeline.lib.jdbc.multithread.DatabaseVendor;
 import com.streamsets.pipeline.lib.jdbc.multithread.TableContextUtil;
 import org.junit.Test;
 
 import java.sql.Types;
 
-import static org.junit.Assert.*;
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.nullValue;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 public class TestTableContextUtil {
+
+  @Test
+  public void testIsTimestampWithNanosFormat() {
+    String timestampGoodFormat = "1107867600100<n>105000";
+    String timestampWrongFormat_1 = "1107867600100<n>1050<n>00";
+    String timestampWrongFormat_2 = "1107867600100";
+    String timestampWrongFormat_3 = "105000";
+    String timestampWrongFormat_4 = "1107867600100<n>";
+    String timestampWrongFormat_5 = "<n>105000";
+
+    assertTrue(TableContextUtil.isTimestampWithNanosFormat(timestampGoodFormat));
+    assertFalse(TableContextUtil.isTimestampWithNanosFormat(timestampWrongFormat_1));
+    assertFalse(TableContextUtil.isTimestampWithNanosFormat(timestampWrongFormat_2));
+    assertFalse(TableContextUtil.isTimestampWithNanosFormat(timestampWrongFormat_3));
+    assertFalse(TableContextUtil.isTimestampWithNanosFormat(timestampWrongFormat_4));
+    assertFalse(TableContextUtil.isTimestampWithNanosFormat(timestampWrongFormat_5));
+  }
+
   @Test
   public void partitionSizeValidation() {
     assertPartitionSize(Types.INTEGER, "1", true);
@@ -43,7 +65,7 @@ public class TestTableContextUtil {
 
   private static void assertPartitionSize(int sqlType, String partitionSize, boolean valid) {
     assertThat(
-        TableContextUtil.getPartitionSizeValidationError(sqlType, "col", partitionSize),
+        TableContextUtil.getPartitionSizeValidationError(DatabaseVendor.UNKNOWN, sqlType, "col", partitionSize),
         valid ? nullValue() : notNullValue()
     );
   }

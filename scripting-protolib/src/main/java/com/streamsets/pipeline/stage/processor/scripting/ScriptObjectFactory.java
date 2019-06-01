@@ -19,6 +19,7 @@ import com.streamsets.pipeline.api.Field;
 import com.streamsets.pipeline.api.FileRef;
 import com.streamsets.pipeline.api.Record;
 import com.streamsets.pipeline.api.Stage;
+import com.streamsets.pipeline.stage.processor.scripting.config.ScriptRecordType;
 
 import javax.script.ScriptEngine;
 import java.io.IOException;
@@ -26,9 +27,11 @@ import java.io.InputStream;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -36,27 +39,42 @@ public class ScriptObjectFactory {
 
   protected final ScriptEngine engine;
   protected final Stage.Context context;
+  private final ScriptRecordType scriptRecordType;
 
-  public ScriptObjectFactory(ScriptEngine engine, Stage.Context context) {
+  public ScriptObjectFactory(
+    ScriptEngine engine,
+    Stage.Context context,
+    ScriptRecordType scriptRecordType
+  ) {
     this.engine = engine;
     this.context = context;
+    this.scriptRecordType = scriptRecordType;
   }
 
   public ScriptRecord createScriptRecord(Record record) {
+    if(scriptRecordType == ScriptRecordType.SDC_RECORDS) {
+      return new SdcScriptRecord(record);
+    }
+
     Object scriptValue = null;
     if (record.get() != null) {
       scriptValue = fieldToScript(record.get());
     }
-    return new ScriptRecord(record, scriptValue);
+    return new NativeScriptRecord(record, scriptValue);
   }
 
   @SuppressWarnings("unchecked")
   public Record getRecord(ScriptRecord scriptRecord) {
-    Record record = scriptRecord.record;
-    Field field = scriptToField(scriptRecord.value, record, "");
+    if(scriptRecord instanceof SdcScriptRecord) {
+      return ((SdcScriptRecord) scriptRecord).sdcRecord;
+    }
+
+    NativeScriptRecord nativeScriptRecord = (NativeScriptRecord) scriptRecord;
+    Record record = nativeScriptRecord.sdcRecord;
+    Field field = scriptToField(nativeScriptRecord.value, record, "");
     record.set(field);
     // Update Record Header Attributes
-    updateRecordHeader(scriptRecord.attributes, record);
+    updateRecordHeader(nativeScriptRecord.attributes, record);
     return record;
   }
 
@@ -172,8 +190,16 @@ public class ScriptObjectFactory {
   }
 
   protected void updateRecordHeader(Map<String, String> header, Record record) {
+    // Transfer new or updated headers
     for (Map.Entry<String, String> entry: header.entrySet()) {
       record.getHeader().setAttribute(entry.getKey(), entry.getValue());
+    }
+
+    // Remove removed headers
+    Set<String> removedHeaders = new HashSet<>(record.getHeader().getAttributeNames());
+    removedHeaders.removeAll(header.keySet());
+    for(String removedHeader : removedHeaders) {
+      record.getHeader().deleteAttribute(removedHeader);
     }
   }
 

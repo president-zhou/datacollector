@@ -21,11 +21,11 @@
   <parent>
     <groupId>com.streamsets</groupId>
     <artifactId>streamsets-datacollector-stage-lib-parent</artifactId>
-    <version>3.9.0-SNAPSHOT</version>
+    <version>3.10.0-SNAPSHOT</version>
     <relativePath>../stage-lib-parent</relativePath>
   </parent>
   <artifactId>streamsets-datacollector-hdp-stagelib-base</artifactId>
-  <version>3.9.0-SNAPSHOT</version>
+  <version>3.10.0-SNAPSHOT</version>
   <description>Base module for HDP stage libs.  Includes dependency management sections to centralize handling of
     Hortonworks specific depdenency clashes/resolutions.</description>
   <name>StreamSets Data Collector HDP Stage Lib Base</name>
@@ -303,6 +303,7 @@
       <dependency>
         <groupId>com.streamsets</groupId>
         <artifactId>streamsets-datacollector-kafka_source-protolib</artifactId>
+        <version>${project.version}</version>
         <scope>compile</scope>
         <exclusions>
           <exclusion>
@@ -319,6 +320,7 @@
       <dependency>
         <groupId>com.streamsets</groupId>
         <artifactId>streamsets-datacollector-kafka_multisource-0_10-protolib</artifactId>
+        <version>${project.version}</version>
         <scope>compile</scope>
         <exclusions>
           <exclusion>
@@ -335,6 +337,7 @@
       <dependency>
         <groupId>com.streamsets</groupId>
         <artifactId>streamsets-datacollector-kafka_target-protolib</artifactId>
+        <version>${project.version}</version>
         <scope>compile</scope>
         <exclusions>
           <exclusion>
@@ -402,6 +405,13 @@
           </exclusion>
         </exclusions>
       </dependency>
+
+      <dependency>
+        <groupId>org.apache.parquet</groupId>
+        <artifactId>parquet-avro</artifactId>
+        <scope>compile</scope>
+      </dependency>
+
     </dependencies>
   </dependencyManagement>
 </project>

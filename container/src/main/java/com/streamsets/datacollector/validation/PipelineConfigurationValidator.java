@@ -29,12 +29,13 @@ import com.streamsets.datacollector.creation.PipelineBean;
 import com.streamsets.datacollector.creation.PipelineBeanCreator;
 import com.streamsets.datacollector.creation.ServiceBean;
 import com.streamsets.datacollector.creation.StageBean;
+import com.streamsets.datacollector.main.RuntimeInfo;
 import com.streamsets.datacollector.stagelibrary.StageLibraryTask;
+import com.streamsets.datacollector.util.Configuration;
 import com.streamsets.pipeline.api.Config;
 import com.streamsets.pipeline.api.ConfigDef;
 import com.streamsets.pipeline.api.ExecutionMode;
 import org.apache.commons.collections.CollectionUtils;
-import org.apache.commons.collections.ListUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,6 +53,9 @@ public class PipelineConfigurationValidator extends PipelineFragmentConfiguratio
   private static final Logger LOG = LoggerFactory.getLogger(PipelineConfigurationValidator.class);
   private static final String TO_ERROR_NULL_TARGET = "com_streamsets_pipeline_stage_destination_devnull_ToErrorNullDTarget";
 
+  private final Configuration dataCollectorConfiguration;
+  private final RuntimeInfo runtimeInfo;
+
   private PipelineConfiguration pipelineConfiguration;
   private PipelineBean pipelineBean;
 
@@ -60,8 +64,20 @@ public class PipelineConfigurationValidator extends PipelineFragmentConfiguratio
       String name,
       PipelineConfiguration pipelineConfiguration
   ) {
+    this(stageLibrary, name, pipelineConfiguration, null, null);
+  }
+
+  public PipelineConfigurationValidator(
+      StageLibraryTask stageLibrary,
+      String name,
+      PipelineConfiguration pipelineConfiguration,
+      Configuration dataCollectorConfiguration,
+      RuntimeInfo runtimeInfo
+  ) {
     super(stageLibrary, name, pipelineConfiguration);
     this.pipelineConfiguration = pipelineConfiguration;
+    this.dataCollectorConfiguration = dataCollectorConfiguration;
+    this.runtimeInfo = runtimeInfo;
   }
 
   public PipelineConfiguration validate() {
@@ -78,10 +94,6 @@ public class PipelineConfigurationValidator extends PipelineFragmentConfiguratio
       canPreview &= sortStages(true);
     }
     canPreview &= checkIfPipelineIsEmpty();
-    // We want to run this check if and only if the sort stages is successful and the pipeline is not empty
-    if(canPreview) {
-      canPreview &= checkForDisconnectedDataFlows();
-    }
     canPreview &= loadAndValidatePipelineConfig();
     canPreview &= validateStageConfiguration();
     canPreview &= validatePipelineLanes();
@@ -92,6 +104,11 @@ public class PipelineConfigurationValidator extends PipelineFragmentConfiguratio
     canPreview &= validatePipelineLifecycleEvents();
     canPreview &= validateStagesExecutionMode(pipelineConfiguration);
     canPreview &= validateCommitTriggerStage(pipelineConfiguration);
+
+    if (!issues.hasIssues()) {
+      // if every thing is good, check for disconnected data flows to support partial preview
+      canPreview &= checkForDisconnectedDataFlows();
+    }
 
     upgradeBadRecordsHandlingStage(pipelineConfiguration);
     upgradeStatsAggregatorStage(pipelineConfiguration);
@@ -301,10 +318,20 @@ public class PipelineConfigurationValidator extends PipelineFragmentConfiguratio
       }
     }
 
-
     if (pipelineConfiguration.getTitle() != null && pipelineConfiguration.getTitle().isEmpty()) {
       issues.add(IssueCreator.getPipeline().create(ValidationError.VALIDATION_0093));
     }
+
+    if (dataCollectorConfiguration != null && runtimeInfo != null) {
+      ValidationUtil.validateClusterConfigs(
+          pipelineBean,
+          dataCollectorConfiguration,
+          runtimeInfo,
+          issueCreator,
+          errors
+      );
+    }
+
     issues.addAll(errors);
     return errors.isEmpty();
   }

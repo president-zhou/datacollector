@@ -23,12 +23,12 @@
     <parent>
         <groupId>com.streamsets</groupId>
         <artifactId>streamsets-datacollector-stage-lib-parent</artifactId>
-        <version>3.9.0-SNAPSHOT</version>
+        <version>3.10.0-SNAPSHOT</version>
         <relativePath>../stage-lib-parent</relativePath>
     </parent>
     <groupId>com.streamsets</groupId>
     <artifactId>streamsets-datacollector-cdh_5_9-lib</artifactId>
-    <version>3.9.0-SNAPSHOT</version>
+    <version>3.10.0-SNAPSHOT</version>
     <description>StreamSets Data Collector CDH 5.9.2 Lib</description>
     <name>StreamSets Data Collector CDH 5.9.0 Lib</name>
     <packaging>jar</packaging>
@@ -45,9 +45,20 @@
         <spark.version>2.1.0.cloudera1</spark.version>
         <jackson.version>2.8.9</jackson.version>
         <netty.version>4.0.29.Final</netty.version>
+        <parquet.version>1.8.1</parquet.version>
     </properties>
 
     <dependencies>
+        <!-- Parquet dependency must be here. Otherwise tests are run with incorrect parquet version taken from
+        MapReduce Protolib-->
+
+        <dependency>
+            <groupId>org.apache.parquet</groupId>
+            <artifactId>parquet-avro</artifactId>
+            <version>${parquet.version}</version>
+            <scope>compile</scope>
+        </dependency>
+
         <dependency>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-mapreduce-client-common</artifactId>
@@ -694,6 +705,18 @@
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>com.streamsets</groupId>
+            <artifactId>streamsets-datacollector-hdfs-protolib</artifactId>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.streamsets</groupId>
+            <artifactId>streamsets-datacollector-cluster-hdfs-protolib</artifactId>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
 
     </dependencies>
 
@@ -711,12 +734,10 @@
                         </goals>
                         <configuration>
                             <sources>
-                                <source>${basedir}/../hdfs-protolib/src/test/java</source>
                                 <source>${basedir}/../mapreduce-protolib/src/test/java</source>
                                 <source>${basedir}/../hive-protolib/src/test/java</source>
                                 <source>${basedir}/../hbase-protolib/src/test/java</source>
                                 <source>${basedir}/../flume-protolib/src/test/java</source>
-                                <source>${basedir}/../cluster-hdfs-protolib/src/test/java</source>
                                 <source>${basedir}/../spark-processor-protolib/src/test/java</source>
                                 <source>${basedir}/../spark-executor-protolib/src/test/java</source>
                             </sources>
@@ -731,9 +752,6 @@
                         <configuration>
                             <resources>
                                 <resource>
-                                    <directory>${basedir}/../hdfs-protolib/src/test/resources</directory>
-                                </resource>
-                                <resource>
                                     <directory>${basedir}/../mapreduce-protolib/src/test/resources</directory>
                                 </resource>
                                 <resource>
@@ -747,9 +765,6 @@
                                 </resource>
                                 <resource>
                                     <directory>${basedir}/../flume-protolib/src/test/resources</directory>
-                                </resource>
-                                <resource>
-                                    <directory>${basedir}/../cluster-hdfs-protolib/src/test/resources</directory>
                                 </resource>
                                 <resource>
                                     <directory>${basedir}/../spark-processor-protolib/src/test/resources</directory>

@@ -43,6 +43,7 @@ import com.streamsets.datacollector.config.StageLibraryDefinition;
 import com.streamsets.datacollector.config.StageLibraryDelegateDefinitition;
 import com.streamsets.datacollector.config.StatsTargetChooserValues;
 import com.streamsets.datacollector.definition.CredentialStoreDefinitionExtractor;
+import com.streamsets.datacollector.definition.EventDefinitionExtractor;
 import com.streamsets.datacollector.definition.InterceptorDefinitionExtractor;
 import com.streamsets.datacollector.definition.LineagePublisherDefinitionExtractor;
 import com.streamsets.datacollector.definition.ServiceDefinitionExtractor;
@@ -56,6 +57,7 @@ import com.streamsets.datacollector.main.BuildInfo;
 import com.streamsets.datacollector.main.RuntimeInfo;
 import com.streamsets.datacollector.main.SdcConfiguration;
 import com.streamsets.datacollector.metrics.MetricsConfigurator;
+import com.streamsets.datacollector.restapi.bean.EventDefinitionJson;
 import com.streamsets.datacollector.restapi.bean.RepositoryManifestJson;
 import com.streamsets.datacollector.restapi.bean.StageInfoJson;
 import com.streamsets.datacollector.restapi.bean.StageLibrariesJson;
@@ -129,6 +131,7 @@ public class ClassLoaderStageLibraryTask extends AbstractTask implements StageLi
   private static final String LATEST = "latest";
   private static final String SNAPSHOT = "-SNAPSHOT";
   private static final String TARBALL_PATH = "/tarball/";
+  private static final String LEGACY_TARBALL_PATH = "/legacy/";
   private static final String ENTERPRISE_PATH = "enterprise/";
   private static final String CONFIG_PACKAGE_MANAGER_REPOSITORY_LINKS = "package.manager.repository.links";
   private static final String REPOSITORY_MANIFEST_JSON_PATH = "repository.manifest.json";
@@ -160,7 +163,7 @@ public class ClassLoaderStageLibraryTask extends AbstractTask implements StageLi
   private ObjectMapper json;
   private KeyedObjectPool<String, ClassLoader> privateClassLoaderPool;
   private Map<String, Object> gaugeMap;
-
+  private final Map<String, EventDefinitionJson> eventDefinitionMap = new HashMap<>();
   private List<RepositoryManifestJson> repositoryManifestList = null;
 
   @Inject
@@ -338,6 +341,9 @@ public class ClassLoaderStageLibraryTask extends AbstractTask implements StageLi
     this.gaugeMap.put(PRIVATE_POOL_ACTIVE, new AtomicInteger(0));
     this.gaugeMap.put(PRIVATE_POOL_IDLE, new AtomicInteger(0));
     this.gaugeMap.put(PRIVATE_POOL_MAX, maxPrivateClassloaders);
+
+    // auto load stage library definitions
+    getRepositoryManifestList();
   }
 
   /**
@@ -553,6 +559,15 @@ public class ClassLoaderStageLibraryTask extends AbstractTask implements StageLi
             LOG.debug("Loaded stage '{}'  version {}", key, stage.getVersion());
             stageList.add(stage);
             stageMap.put(key, stage);
+
+            for(Class eventDefClass : stage.getEventDefs()) {
+              if (!eventDefinitionMap.containsKey(eventDefClass.getCanonicalName())) {
+                eventDefinitionMap.put(
+                    eventDefClass.getCanonicalName(),
+                    EventDefinitionExtractor.get().extractEventDefinition(eventDefClass)
+                );
+              }
+            }
           }
 
           // Load Lineage publishers
@@ -915,12 +930,15 @@ public class ClassLoaderStageLibraryTask extends AbstractTask implements StageLi
       if (StringUtils.isEmpty(repoLinksStr)) {
         String version = buildInfo.getVersion();
         String repoUrl = ARCHIVES_URL + version + TARBALL_PATH;
+        String legacyRepoUrl = ARCHIVES_URL + version + LEGACY_TARBALL_PATH;
         if (version.contains(SNAPSHOT)) {
           repoUrl = NIGHTLY_URL + LATEST + TARBALL_PATH;
+          legacyRepoUrl = NIGHTLY_URL + LATEST + LEGACY_TARBALL_PATH;
         }
         repoURLList = new String[] {
             repoUrl,
-            repoUrl + ENTERPRISE_PATH
+            repoUrl + ENTERPRISE_PATH,
+            legacyRepoUrl
         };
       } else {
         repoURLList = repoLinksStr.split(",");
@@ -972,6 +990,9 @@ public class ClassLoaderStageLibraryTask extends AbstractTask implements StageLi
               );
               stageLibraryManifestJson.setStageLibFile(repoUrl + stageLibraryManifestJson.getStageLibFile());
               stageLibrariesJson.setStageLibraryManifest(stageLibraryManifestJson);
+              if (repoUrl.contains(LEGACY_TARBALL_PATH)) {
+                stageLibrariesJson.setLegacy(true);
+              }
               addedLibraryIds.add(stageLibraryManifestJson.getStageLibId());
             }
           }
@@ -1005,6 +1026,51 @@ public class ClassLoaderStageLibraryTask extends AbstractTask implements StageLi
   @Override
   public boolean isMultipleOriginSupported() {
     return false;
+  }
+
+  @Override
+  public List<String> getLegacyStageLibs() {
+    return ImmutableList.of(
+      "streamsets-datacollector-apache-kafka_0_10-lib",
+      "streamsets-datacollector-apache-kafka_0_8_1-lib",
+      "streamsets-datacollector-apache-kafka_0_8_2-lib",
+      "streamsets-datacollector-apache-kafka_0_9-lib",
+      "streamsets-datacollector-apache-kafka_0_11-lib",
+      "streamsets-datacollector-apache-kudu_1_0-lib",
+      "streamsets-datacollector-apache-kudu_1_1-lib",
+      "streamsets-datacollector-apache-kudu_1_2-lib",
+      "streamsets-datacollector-cdh-spark_2_1-lib",
+      "streamsets-datacollector-cdh_5_2-lib",
+      "streamsets-datacollector-cdh_5_3-lib",
+      "streamsets-datacollector-cdh_5_4-lib",
+      "streamsets-datacollector-cdh_5_5-lib",
+      "streamsets-datacollector-cdh_5_7-lib",
+      "streamsets-datacollector-cdh_5_8-lib",
+      "streamsets-datacollector-cdh_5_9-lib",
+      "streamsets-datacollector-cdh_5_10-lib",
+      "streamsets-datacollector-cdh_5_11-lib",
+      "streamsets-datacollector-cdh_5_12-lib",
+      "streamsets-datacollector-cdh_5_13-lib",
+      "streamsets-datacollector-cdh_kafka_1_2-lib",
+      "streamsets-datacollector-cdh_kafka_1_3-lib",
+      "streamsets-datacollector-cdh_kafka_2_0-lib",
+      "streamsets-datacollector-cdh_kafka_2_1-lib",
+      "streamsets-datacollector-cdh_kafka_3_0-lib",
+      "streamsets-datacollector-hdp_2_2-lib",
+      "streamsets-datacollector-hdp_2_3-hive1-lib",
+      "streamsets-datacollector-hdp_2_3-lib",
+      "streamsets-datacollector-hdp_2_4-hive1-lib",
+      "streamsets-datacollector-hdp_2_4-lib",
+      "streamsets-datacollector-hdp_2_5-flume-lib",
+      "streamsets-datacollector-hdp_2_5-lib",
+      "streamsets-datacollector-mapr_5_0-lib",
+      "streamsets-datacollector-mapr_5_1-lib"
+    );
+  }
+
+  @Override
+  public Map<String, EventDefinitionJson> getEventDefinitions() {
+    return eventDefinitionMap;
   }
 
   private RepositoryManifestJson getRepositoryManifestFile(String repoUrl) {

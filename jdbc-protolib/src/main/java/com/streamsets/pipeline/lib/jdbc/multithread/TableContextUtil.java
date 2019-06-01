@@ -17,6 +17,7 @@ package com.streamsets.pipeline.lib.jdbc.multithread;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import com.streamsets.pipeline.api.Field;
@@ -50,6 +51,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -70,7 +73,11 @@ public class TableContextUtil {
   public static final String GENERIC_PARTITION_SIZE_GT_ZERO_MSG = "partition size must be greater than zero";
   public static final String SQL_SERVER_CDC_TABLE_SUFFIX = "_CT";
 
+  public static final int TYPE_ORACLE_TIMESTAMP_WITH_TIME_ZONE = -101;
+  public static final int TYPE_ORACLE_TIMESTAMP_WITH_LOCAL_TIME_ZONE = -102;
+
   public static final String OFFSET_VALUE_NANO_SEPARATOR = "<n>";
+  public static final String TIMESTAMP_NANOS_PATTERN = "^[0-9]+" + OFFSET_VALUE_NANO_SEPARATOR + "[0-9]+$";
 
   public static final Set<Integer> PARTITIONABLE_TYPES = ImmutableSet.<Integer>builder()
     .add(Types.TINYINT)
@@ -85,6 +92,13 @@ public class TableContextUtil {
     .add(Types.DOUBLE)
     .add(Types.DECIMAL)
     .add(Types.NUMERIC)
+    .build();
+
+  public static final Map<DatabaseVendor, Set<Integer>> VENDOR_PARTITIONABLE_TYPES = ImmutableMap.<DatabaseVendor, Set<Integer>>builder()
+    .put(DatabaseVendor.ORACLE, ImmutableSet.of(
+      TYPE_ORACLE_TIMESTAMP_WITH_TIME_ZONE,
+      TYPE_ORACLE_TIMESTAMP_WITH_LOCAL_TIME_ZONE
+    ))
     .build();
 
   private JdbcUtil jdbcUtil;
@@ -111,6 +125,30 @@ public class TableContextUtil {
       }
     }
     return columnNameToType;
+  }
+
+  /**
+   * Our own implementation of JDBCType.valueOf() that won't throw an exception in case of unknown type.
+   *
+   * @param jdbcType
+   * @return
+   */
+  public static String nameForType(DatabaseVendor vendor, int jdbcType) {
+    for( JDBCType sqlType : JDBCType.class.getEnumConstants()) {
+      if(jdbcType == sqlType.getVendorTypeNumber())
+        return sqlType.name();
+    }
+
+    switch (vendor) {
+      case ORACLE:
+        switch (jdbcType) {
+          case TYPE_ORACLE_TIMESTAMP_WITH_TIME_ZONE: return "TIMESTAMP WITH TIME ZONE";
+          case TYPE_ORACLE_TIMESTAMP_WITH_LOCAL_TIME_ZONE: return "TIMESTAMP WITH LOCAL TIME ZONE";
+        }
+        break;
+    }
+
+    return "Unknown";
   }
 
   private void checkForUnsupportedOffsetColumns(
@@ -152,6 +190,7 @@ public class TableContextUtil {
   }
 
   private TableContext createTableContext(
+      DatabaseVendor vendor,
       PushSource.Context context,
       List<Stage.ConfigIssue> issues,
       Connection connection,
@@ -209,6 +248,7 @@ public class TableContextUtil {
     Map<String, String> offsetColumnMinValues = new HashMap<>();
     if (tableConfigBean.partitioningMode != PartitioningMode.DISABLED) {
       offsetColumnMinValues.putAll(jdbcUtil.getMinimumOffsetValues(
+          vendor,
           connection,
           schemaName,
           tableName,
@@ -255,6 +295,7 @@ public class TableContextUtil {
     offsetColumnToType.keySet().forEach(c -> offsetAdjustments.put(c, tableConfigBean.partitionSize));
 
     return new TableContext(
+        vendor,
         schemaName,
         tableName,
         offsetColumnToType,
@@ -330,7 +371,14 @@ public class TableContextUtil {
       String initialOffsetValue = offsetColumnToStartOffset.get(offsetColumn);
       try {
         if (jdbcUtil.isSqlTypeOneOf(offsetSqlType, Types.DATE, Types.TIME, Types.TIMESTAMP)) {
-          Long.valueOf(initialOffsetValue); //NOSONAR
+          if (jdbcUtil.isSqlTypeOneOf(offsetSqlType, Types.TIMESTAMP)) {
+            if (!isTimestampWithNanosFormat(initialOffsetValue)) {
+              Long.valueOf(initialOffsetValue);
+            }
+          } else {
+            Long.valueOf(initialOffsetValue);
+          }
+
         } else {
           //Use native field conversion strategy to conver string to specify type and get value
           Field.create(OffsetQueryUtil.SQL_TYPE_TO_FIELD_TYPE.get(offsetSqlType), initialOffsetValue).getValue();
@@ -366,6 +414,7 @@ public class TableContextUtil {
    * @throws StageException if partition configuration is not correct.
    */
   public Map<String, TableContext> listTablesForConfig(
+      DatabaseVendor vendor,
       PushSource.Context context,
       List<Stage.ConfigIssue> issues,
       Connection connection,
@@ -389,6 +438,7 @@ public class TableContextUtil {
             (schemaExclusion == null || !schemaExclusion.matcher(schemaName).matches())
         ) {
           TableContext tableContext = createTableContext(
+              vendor,
               context,
               issues,
               connection,
@@ -411,6 +461,7 @@ public class TableContextUtil {
   }
 
   public static String getPartitionSizeValidationError(
+      DatabaseVendor vendor,
       int colType,
       String column,
       String partitionSize
@@ -423,6 +474,7 @@ public class TableContextUtil {
           int intVal = Integer.parseInt(partitionSize);
           if (intVal <= 0) {
             return createPartitionSizeValidationError(
+                vendor,
                 column,
                 partitionSize,
                 colType,
@@ -430,7 +482,7 @@ public class TableContextUtil {
             );
           }
         } catch (NumberFormatException e) {
-          return createPartitionSizeValidationError(column, partitionSize, colType, e.getMessage());
+          return createPartitionSizeValidationError(vendor, column, partitionSize, colType, e.getMessage());
         }
         break;
       case Types.BIGINT:
@@ -442,6 +494,7 @@ public class TableContextUtil {
           long longVal = Long.parseLong(partitionSize);
           if (longVal <= 0) {
             return createPartitionSizeValidationError(
+                vendor,
                 column,
                 partitionSize,
                 colType,
@@ -449,7 +502,7 @@ public class TableContextUtil {
             );
           }
         } catch (NumberFormatException e) {
-          return createPartitionSizeValidationError(column, partitionSize, colType, e.getMessage());
+          return createPartitionSizeValidationError(vendor, column, partitionSize, colType, e.getMessage());
         }
         break;
       case Types.FLOAT:
@@ -458,6 +511,7 @@ public class TableContextUtil {
           float floatVal = Float.parseFloat(partitionSize);
           if (floatVal <= 0) {
             return createPartitionSizeValidationError(
+                vendor,
                 column,
                 partitionSize,
                 colType,
@@ -465,7 +519,7 @@ public class TableContextUtil {
             );
           }
         } catch (NumberFormatException e) {
-          return createPartitionSizeValidationError(column, partitionSize, colType, e.getMessage());
+          return createPartitionSizeValidationError(vendor, column, partitionSize, colType, e.getMessage());
         }
         break;
       case Types.DOUBLE:
@@ -473,6 +527,7 @@ public class TableContextUtil {
           double doubleVal = Double.parseDouble(partitionSize);
           if (doubleVal <= 0) {
             return createPartitionSizeValidationError(
+                vendor,
                 column,
                 partitionSize,
                 colType,
@@ -480,7 +535,7 @@ public class TableContextUtil {
             );
           }
         } catch (NumberFormatException e) {
-          return createPartitionSizeValidationError(column, partitionSize, colType, e.getMessage());
+          return createPartitionSizeValidationError(vendor, column, partitionSize, colType, e.getMessage());
         }
         break;
       case Types.NUMERIC:
@@ -489,6 +544,7 @@ public class TableContextUtil {
           BigDecimal decimalValue = new BigDecimal(partitionSize);
           if (decimalValue.signum() < 1) {
             return createPartitionSizeValidationError(
+                vendor,
                 column,
                 partitionSize,
                 colType,
@@ -496,7 +552,7 @@ public class TableContextUtil {
             );
           }
         } catch (NumberFormatException e) {
-          return createPartitionSizeValidationError(column, partitionSize, colType, e.getMessage());
+          return createPartitionSizeValidationError(vendor, column, partitionSize, colType, e.getMessage());
         }
         break;
     }
@@ -504,6 +560,7 @@ public class TableContextUtil {
   }
 
   private static String createPartitionSizeValidationError(
+      DatabaseVendor vendor,
       String colName,
       String partitionSize,
       int sqlType,
@@ -513,7 +570,7 @@ public class TableContextUtil {
         "Partition size of %s is invalid for offset column %s (type %s): %s",
         partitionSize,
         colName,
-        JDBCType.valueOf(sqlType).getName(),
+        nameForType(vendor, sqlType),
         errorMsg
     );
   }
@@ -524,7 +581,24 @@ public class TableContextUtil {
       String offset
   ) {
     final String partitionSize = tableContext.getOffsetColumnToPartitionOffsetAdjustments().get(column);
-    switch (tableContext.getOffsetColumnToType().get(column)) {
+    final int offsetColumnType = tableContext.getOffsetColumnToType().get(column);
+
+    switch (tableContext.getVendor()) {
+      case ORACLE:
+        if(TableContextUtil.VENDOR_PARTITIONABLE_TYPES.get(DatabaseVendor.ORACLE).contains(offsetColumnType)) {
+          switch (offsetColumnType) {
+            case TableContextUtil.TYPE_ORACLE_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+            case TableContextUtil.TYPE_ORACLE_TIMESTAMP_WITH_TIME_ZONE:
+              return ZonedDateTime.parse(offset, DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+                .plusSeconds(Integer.parseInt(partitionSize))
+                .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+            default:
+              throw new IllegalStateException(Utils.format("Unsupported type: {}", offsetColumnType));
+          }
+        }
+    }
+
+    switch (offsetColumnType) {
       case Types.TINYINT:
       case Types.SMALLINT:
       case Types.INTEGER:
@@ -570,6 +644,17 @@ public class TableContextUtil {
     final int nanosAdjusted = nanos % JdbcUtil.NANOS_TO_MILLIS_ADJUSTMENT;
     String nanosStr = nanosAdjusted > 0 ? String.valueOf(nanosAdjusted) : "";
     return String.format("%d%s%s", millis, OFFSET_VALUE_NANO_SEPARATOR, nanosStr);
+  }
+
+  /**
+   * Checks if timestamp string format is {@code epochMillis<n>nanoseconds}.
+   *
+   * @param offsetValue The timestamp string
+   * @return true if {@param offsetValue} format is {@code epochMillis<n>nanoseconds}, false otherwise.
+   */
+  public static boolean isTimestampWithNanosFormat(String offsetValue) {
+    Pattern timestampNanosStrPattern = Pattern.compile(TIMESTAMP_NANOS_PATTERN);
+    return timestampNanosStrPattern.matcher(offsetValue).matches();
   }
 
   public static Timestamp getTimestampForOffsetValue(String offsetValue) {
@@ -733,6 +818,7 @@ public class TableContextUtil {
     final String extraOffsetColumnConditions = "";
 
     return new TableContext(
+        DatabaseVendor.SQL_SERVER,
         schemaName,
         tableName,
         offsetColumnToType,
@@ -771,6 +857,7 @@ public class TableContextUtil {
     final String extraOffsetColumnConditions = "";
 
     TableContext tableContext = new TableContext(
+        DatabaseVendor.SQL_SERVER,
         schemaName,
         tableName,
         offsetColumnToType,

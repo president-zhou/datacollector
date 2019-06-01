@@ -18,6 +18,8 @@ package com.streamsets.datacollector.runner;
 import com.codahale.metrics.MetricRegistry;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.streamsets.datacollector.antennadoctor.AntennaDoctor;
+import com.streamsets.datacollector.antennadoctor.engine.context.AntennaDoctorStageContext;
 import com.streamsets.datacollector.config.ConfigDefinition;
 import com.streamsets.datacollector.email.EmailSender;
 import com.streamsets.datacollector.lineage.LineageEventImpl;
@@ -30,6 +32,7 @@ import com.streamsets.datacollector.runner.production.ReportErrorDelegate;
 import com.streamsets.datacollector.util.Configuration;
 import com.streamsets.datacollector.util.ContainerError;
 import com.streamsets.lib.security.http.RemoteSSOService;
+import com.streamsets.pipeline.api.AntennaDoctorMessage;
 import com.streamsets.pipeline.api.BatchContext;
 import com.streamsets.pipeline.api.DeliveryGuarantee;
 import com.streamsets.pipeline.api.ErrorCode;
@@ -120,7 +123,9 @@ public class StageContext extends ProtoContext implements
       "x",
       stageType,
       null,
-      resourcesDir
+      resourcesDir,
+      null,
+      null
     );
     this.pipelineTitle = "My Pipeline";
     this.pipelineDescription = "Sample Pipeline";
@@ -203,7 +208,9 @@ public class StageContext extends ProtoContext implements
       long startTime,
       LineagePublisherDelegator lineagePublisherDelegator,
       Map<Class, ServiceRuntime> services,
-      boolean isErrorStage
+      boolean isErrorStage,
+      AntennaDoctor antennaDoctor,
+      AntennaDoctorStageContext antennaDoctorContext
   ) {
     super(
       configuration,
@@ -217,7 +224,9 @@ public class StageContext extends ProtoContext implements
       stageInfo.getInstanceName(),
       stageType,
       null,
-      runtimeInfo.getResourcesDir()
+      runtimeInfo.getResourcesDir(),
+      antennaDoctor,
+      antennaDoctorContext
     );
     this.pipelineTitle = pipelineTitle;
     this.pipelineInfo = pipelineInfo;
@@ -363,22 +372,22 @@ public class StageContext extends ProtoContext implements
     Preconditions.checkNotNull(exception, "exception cannot be null");
     if (exception instanceof StageException) {
       StageException stageException = (StageException)exception;
-      reportErrorDelegate.reportError(stageInfo.getInstanceName(), new ErrorMessage(stageException.getErrorCode(), stageException.getParams()));
+      reportErrorDelegate.reportError(stageInfo.getInstanceName(), produceErrorMessage(stageException.getErrorCode(), stageException.getParams()));
     } else {
-      reportErrorDelegate.reportError(stageInfo.getInstanceName(), new ErrorMessage(ContainerError.CONTAINER_0001, exception.toString()));
+      reportErrorDelegate.reportError(stageInfo.getInstanceName(), produceErrorMessage(exception));
     }
   }
 
   @Override
   public void reportError(String errorMessage) {
     Preconditions.checkNotNull(errorMessage, "errorMessage cannot be null");
-    reportErrorDelegate.reportError(stageInfo.getInstanceName(), new ErrorMessage(ContainerError.CONTAINER_0002, errorMessage));
+    reportErrorDelegate.reportError(stageInfo.getInstanceName(), produceErrorMessage(errorMessage));
   }
 
   @Override
   public void reportError(ErrorCode errorCode, Object... args) {
     Preconditions.checkNotNull(errorCode, "errorId cannot be null");
-    reportErrorDelegate.reportError(stageInfo.getInstanceName(), new ErrorMessage(errorCode, args));
+    reportErrorDelegate.reportError(stageInfo.getInstanceName(), produceErrorMessage(errorCode, args));
   }
 
   @Override
@@ -402,7 +411,7 @@ public class StageContext extends ProtoContext implements
   public void toError(Record record, String errorMessage) {
     Preconditions.checkNotNull(record, "record cannot be null");
     Preconditions.checkNotNull(errorMessage, "errorMessage cannot be null");
-    toError(record, new ErrorMessage(ContainerError.CONTAINER_0002, errorMessage));
+    toError(record, new ErrorMessage(ContainerError.CONTAINER_0001, errorMessage));
   }
 
   @Override
@@ -425,6 +434,33 @@ public class StageContext extends ProtoContext implements
       recordImpl.getHeader().setErrorJobId(jobId);
     }
     errorSink.addRecord(stageInfo.getInstanceName(), recordImpl);
+  }
+
+  public ErrorMessage produceErrorMessage(Exception exception) {
+    List<AntennaDoctorMessage> messages = Collections.emptyList();
+    if(antennaDoctor != null) {
+      messages = antennaDoctor.onStage(antennaDoctorContext, exception);
+    }
+
+    return new ErrorMessage(messages, ContainerError.CONTAINER_0001, exception.toString());
+  }
+
+  public ErrorMessage produceErrorMessage(ErrorCode errorCode, Object ...args) {
+    List<AntennaDoctorMessage> messages = Collections.emptyList();
+    if(antennaDoctor != null) {
+      messages = antennaDoctor.onStage(antennaDoctorContext, errorCode, args);
+    }
+
+    return new ErrorMessage(messages, errorCode, args);
+  }
+
+  public ErrorMessage produceErrorMessage(String errorMessage) {
+    List<AntennaDoctorMessage> messages = Collections.emptyList();
+    if(antennaDoctor != null) {
+      messages = antennaDoctor.onStage(antennaDoctorContext, errorMessage);
+    }
+
+    return new ErrorMessage(messages, ContainerError.CONTAINER_0001, errorMessage);
   }
 
   @Override

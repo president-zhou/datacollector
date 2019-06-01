@@ -25,9 +25,11 @@ import com.streamsets.pipeline.api.ValueChooserModel;
 import com.streamsets.pipeline.api.base.configurablestage.DProcessor;
 import com.streamsets.pipeline.stage.processor.scripting.ProcessingMode;
 import com.streamsets.pipeline.stage.processor.scripting.ProcessingModeChooserValues;
+import com.streamsets.pipeline.stage.processor.scripting.config.ScriptRecordType;
+import com.streamsets.pipeline.stage.processor.scripting.config.ScriptRecordTypeValueChooser;
 
 @StageDef(
-    version = 2,
+    version = 3,
     label = "Jython Evaluator",
     description = "Processes records using Jython",
     icon = "jython.png",
@@ -131,6 +133,9 @@ public class JythonDProcessor extends DProcessor {
       "    # if sdcFunctions.getFieldNull(record, '/null_int') == NULL_INTEGER:\n" +
       "    #    record.value['null_int'] = 123\n" +
       "\n" +
+      "    # Direct access to the underlying Data Collector Record. Use for read-only operations.\n" +
+      "    # fieldAttr = record.sdcRecord.get('/value').getAttribute('attr')  \n" +
+      "\n" +
       "    # Create a new record with map field \n" +
       "    # newRecord = sdcFunctions.createRecord(record.sourceId + ':newRecordId')\n" +
       "    # newRecord.value = {'field1' : 'val1', 'field2' : 'val2'}\n" +
@@ -232,9 +237,21 @@ public class JythonDProcessor extends DProcessor {
       mode = ConfigDef.Mode.PYTHON)
   public String destroyScript = "";
 
+  @ConfigDef(
+      required = true,
+      type = ConfigDef.Type.MODEL,
+      defaultValue = "NATIVE_OBJECTS",
+      label = "Record Type",
+      description = "Record type to use during script execution",
+      displayPosition = 10,
+      group = "ADVANCED"
+  )
+  @ValueChooserModel(ScriptRecordTypeValueChooser.class)
+  public ScriptRecordType scriptRecordType = ScriptRecordType.NATIVE_OBJECTS;
+
   @Override
   protected Processor createProcessor() {
-    return new JythonProcessor(processingMode, script, initScript, destroyScript);
+    return new JythonProcessor(processingMode, script, initScript, destroyScript, scriptRecordType);
   }
 
 }

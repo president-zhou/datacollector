@@ -363,6 +363,7 @@
       "sources": "Origins",
       "stageLibrary": "Stage Library",
       "start": "Start",
+      "startPipeline": "Start Pipeline",
       "startingPipeline": "Starting Pipeline...",
       "startWithParametersTitle": "Start With Parameters",
       "stop": "Stop",
@@ -381,7 +382,7 @@
     },
     "getStartedWithTutorials": "Try a Tutorial",
     "graphPane": {
-      "errorStackTrace": "Error Stack Trace",
+      "errorStackTrace": "Error Details",
       "dontShowAgain": "Don't show again.",
       "originMissing": "Origin missing",
       "selectExecutor": "Select Executor to connect...",
@@ -389,13 +390,14 @@
       "selectProcessorToAddInBetween": "Select Processor to add in between the selected stream...",
       "selectTarget": "Select Destination to connect...",
       "startErrorMessage": "Pipeline definition '{{name}}' is running.",
-      "viewStackTrace": "View Stack Trace"
+      "viewStackTrace": "View Details"
     },
     "detailPane": {
       "alerts": "Alerts",
       "batchesPerSecond": "( batches / sec )",
       "emailIDs": "Email IDs",
       "errors": "Errors",
+      "eventsInfo": "Generated Events",
       "badRecords": "Error Records",
       "badRecordsTab": {
         "mostRecentBadRecords": "Most Recent Error Records",
@@ -479,6 +481,7 @@
       "monitoringJSONData": "Pipeline Monitoring",
       "notifications": "Notifications",
       "noStageDefinitionFound": "Could not find stage definition for stage name: {{stageName}}, library: {{library}}",
+      "legacyStageLibFound": "Stage library '{{library}}' is now a legacy stage library and must be installed as a custom stage library.",
       "pipelineConfigJSONData": "Pipeline Configuration",
       "pipelinePreviewJSONData": "Preview Data",
       "pipelineRulesJSONData": "Pipeline Rules",
@@ -702,6 +705,14 @@
       "confirmationMessageBulk": "The Data Collector will request all available data from the origin instead of continuing from the last processed record. This might result in processing data that was already processed, and this will only be applied to pipelines with an origin stage that supports resetting offset. Are you sure and want to reset origin for below pipelines?",
       "noSupport": "Origin '{{label}}' doesn't support reset operation",
       "successMessage": "Reset Origin is successful."
+    },
+    "resetOffsetAndStart": {
+      "title": "Reset Origin & Start",
+      "confirmationTitle": "Reset Origin and Start Confirmation",
+      "confirmationMessage": "The Data Collector will request all available data from the origin instead of continuing from the last processed record. This might result in processing data that was already processed. Continue?",
+      "confirmationMessageBulk": "The Data Collector will request all available data from the origin instead of continuing from the last processed record. This might result in processing data that was already processed, and this will only be applied to pipelines with an origin stage that supports resetting offset. Are you sure and want to reset origin for below pipelines?",
+      "noSupport": "Origin '{{label}}' doesn't support reset operation",
+      "successMessage": "Reset Origin and Start is successful."
     },
     "runningStatus": "Pipeline is running",
     "restart": {

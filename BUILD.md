@@ -67,11 +67,11 @@ From within the Data Collector directory, execute:
 
 To start the Data Collector, execute:
 
-`dist/target/streamsets-datacollector-3.9.0-SNAPSHOT/streamsets-datacollector-3.9.0-SNAPSHOT/bin/streamsets dc`
+`dist/target/streamsets-datacollector-3.10.0-SNAPSHOT/streamsets-datacollector-3.10.0-SNAPSHOT/bin/streamsets dc`
 
 For Data Collector CLI, execute:
 
-`dist/target/streamsets-datacollector-3.9.0-SNAPSHOT/streamsets-datacollector-3.9.0-SNAPSHOT/bin/streamsets cli`
+`dist/target/streamsets-datacollector-3.10.0-SNAPSHOT/streamsets-datacollector-3.10.0-SNAPSHOT/bin/streamsets cli`
 
 To skip the RAT report during the build use the `-DskipRat` option.
 
@@ -93,19 +93,19 @@ In case you want to run a specific integration class (here the module basic-lib 
 
 From within the Data Collector directory, execute:
 
-`mvn package -Drelease -DskipTests`
+`mvn clean package -Drelease -DskipTests -P-rpm`
 
 The release tarball will be created at:
 
-`release/target/streamsets-datacollector-all-3.9.0-SNAPSHOT.tgz`
+`release/target/streamsets-datacollector-all-3.10.0-SNAPSHOT.tgz`
 
 Extract the tarball to your preferred location :
 
-`tar xf streamsets-datacollector-all-3.9.0-SNAPSHOT.tgz`
+`tar xf streamsets-datacollector-all-3.10.0-SNAPSHOT.tgz`
 
 To start the DataCollector, execute:
 
-`streamsets-datacollector-all-3.9.0-SNAPSHOT/bin/streamsets dc`
+`streamsets-datacollector-all-3.10.0-SNAPSHOT/bin/streamsets dc`
 
 ## Troubleshooting
 

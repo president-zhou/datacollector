@@ -144,7 +144,7 @@ public abstract class AbstractTableJdbcSource extends BasePushSource {
     try {
       hikariDataSource = jdbcUtil.createDataSourceForRead(hikariConfigBean);
     } catch (StageException e) {
-      issues.add(context.createConfigIssue(com.streamsets.pipeline.stage.origin.jdbc.table.Groups.JDBC.name(), CONNECTION_STRING, JdbcErrors.JDBC_00, e.toString()));
+      issues.add(context.createConfigIssue(com.streamsets.pipeline.stage.origin.jdbc.table.Groups.JDBC.name(), CONNECTION_STRING, e.getErrorCode(), e.getParams()));
     }
     if (issues.isEmpty()) {
       try {
@@ -265,6 +265,7 @@ public abstract class AbstractTableJdbcSource extends BasePushSource {
         }
 
         final String validationError = tableContextUtil.getPartitionSizeValidationError(
+            hikariConfigBean.getVendor(),
             entry.getValue(),
             entry.getKey(),
             partitionSize
@@ -345,8 +346,6 @@ public abstract class AbstractTableJdbcSource extends BasePushSource {
       executorService = new SafeScheduledExecutorService(numberOfThreads, TableJdbcRunnable.TABLE_JDBC_THREAD_PREFIX);
 
       ExecutorCompletionService<Future> completionService = new ExecutorCompletionService<>(executorService);
-
-      final RateLimiter queryRateLimiter = commonSourceConfigBean.creatQueryRateLimiter();
 
       List<Future> allFutures = new LinkedList<>();
       IntStream.range(0, numberOfThreads).forEach(threadNumber -> {

@@ -23,16 +23,18 @@ import com.streamsets.pipeline.api.HideConfigs;
 import com.streamsets.pipeline.api.StageDef;
 import com.streamsets.pipeline.api.Target;
 import com.streamsets.pipeline.api.base.configurablestage.DTarget;
+import com.streamsets.pipeline.lib.event.WholeFileProcessedEvent;
 
 @StageDef(
     version = 1,
-    label = "SFTP/FTP Client",
-    description = "Uses an SFTP/FTP client to send data to a URL.",
+    label = "SFTP/FTP/FTPS Client",
+    description = "Uses an SFTP/FTP/FTPS client to send data to a URL.",
     icon = "sftp-client.png",
     execution = ExecutionMode.STANDALONE,
     recordsByRef = true,
     resetOffset = true,
     producesEvents = true,
+    eventDefs = {WholeFileProcessedEvent.class},
     onlineHelpRefUrl ="index.html?contextID=task_jgs_4fw_pgb"
 )
 @HideConfigs(value = {

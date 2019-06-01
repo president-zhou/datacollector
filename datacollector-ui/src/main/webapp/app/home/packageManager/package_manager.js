@@ -52,6 +52,7 @@ angular
         'All Stage Libraries',
         'Installed Stage Libraries',
         'Enterprise Stage Libraries',
+        'Legacy Stage Libraries',
         'Machine Learning',
         'Amazon Web Services',
         'Apache Kafka',
@@ -124,6 +125,11 @@ angular
             $scope.filteredStageLibraries = _.filter($scope.stageLibraries, function(stageLibrary) {
               return stageLibrary.stageLibraryManifest && regex.test(stageLibrary.stageLibraryManifest.stageLibLabel) &&
                 stageLibrary.stageLibraryManifest.stageLibLicense === 'StreamSetsEnterprise1.0';
+            });
+            break;
+          case 'Legacy Stage Libraries':
+            $scope.filteredStageLibraries = _.filter($scope.stageLibraries, function(stageLibrary) {
+              return stageLibrary.legacy;
             });
             break;
           case 'Machine Learning':
@@ -387,13 +393,39 @@ angular
 
       getStageInfoList: function(stageDefList) {
         var stageInfoList = [];
+        var originList = [];
+        var processorList = [];
+        var destinationList = [];
+        var others = [];
         angular.forEach(stageDefList, function (stageInfo) {
-          stageInfoList.push(stageInfo);
+          if (!stageInfo.errorStage && !stageInfo.statsAggregatorStage) {
+            if (stageInfo.type === 'SOURCE') {
+              originList.push(stageInfo);
+            } else if (stageInfo.type === 'PROCESSOR') {
+              processorList.push(stageInfo);
+            } else if (stageInfo.type === 'TARGET') {
+              destinationList.push(stageInfo);
+            } else {
+              others.push(stageInfo);
+            }
+          }
         });
+        stageInfoList.push.apply(stageInfoList, originList.sort(sortStageInfo));
+        stageInfoList.push.apply(stageInfoList, processorList.sort(sortStageInfo));
+        stageInfoList.push.apply(stageInfoList, destinationList.sort(sortStageInfo));
+        stageInfoList.push.apply(stageInfoList, others.sort(sortStageInfo));
         return stageInfoList;
       }
 
     });
+
+    var sortStageInfo = function(a, b) {
+      if (a.label.toLowerCase() > b.label.toLowerCase()) {
+        return 1;
+      } else {
+        return -1;
+      }
+    };
 
     $q.all([
       configuration.init()

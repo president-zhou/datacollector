@@ -23,12 +23,12 @@
   <parent>
     <groupId>com.streamsets</groupId>
     <artifactId>streamsets-datacollector-hdp-stagelib-base</artifactId>
-    <version>3.9.0-SNAPSHOT</version>
+    <version>3.10.0-SNAPSHOT</version>
     <relativePath>../hdp-stagelib-base</relativePath>
   </parent>
   <groupId>com.streamsets</groupId>
   <artifactId>streamsets-datacollector-hdp_2_2-lib</artifactId>
-  <version>3.9.0-SNAPSHOT</version>
+  <version>3.10.0-SNAPSHOT</version>
   <description>StreamSets Data Collector HDP 2.2.0 Lib</description>
   <name>StreamSets Data Collector HDP 2.2.0 Lib</name>
   <packaging>jar</packaging>
@@ -43,9 +43,19 @@
     <avro.version>1.7.7</avro.version>
     <h2.version>1.4.187</h2.version>
     <httpclient.version>4.5.1</httpclient.version>
+    <parquet.version>1.8.1</parquet.version>
   </properties>
 
   <dependencies>
+    <!-- Parquet test dependency must be here. Otherwise tests are run with incorrect parquet version taken from
+            MapReduce Protolib-->
+    <dependency>
+      <groupId>org.apache.parquet</groupId>
+      <artifactId>parquet-avro</artifactId>
+      <version>${parquet.version}</version>
+      <scope>compile</scope>
+    </dependency>
+
     <dependency>
       <groupId>com.streamsets</groupId>
       <artifactId>streamsets-datacollector-api</artifactId>
@@ -249,12 +259,10 @@
     <dependency>
       <groupId>com.streamsets</groupId>
       <artifactId>streamsets-datacollector-kafka_source-protolib</artifactId>
-      <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>com.streamsets</groupId>
       <artifactId>streamsets-datacollector-kafka_target-protolib</artifactId>
-      <version>${project.version}</version>
     </dependency>
 
     <dependency>
@@ -326,6 +334,19 @@
 
     <dependency>
       <groupId>com.streamsets</groupId>
+      <artifactId>streamsets-datacollector-kafka_source-protolib</artifactId>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.streamsets</groupId>
+      <artifactId>streamsets-datacollector-kafka_target-protolib</artifactId>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>com.streamsets</groupId>
       <artifactId>streamsets-datacollector-sdc-kafka-08</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
@@ -364,6 +385,19 @@
       <version>4.0.23.Final</version>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>com.streamsets</groupId>
+      <artifactId>streamsets-datacollector-hdfs-protolib</artifactId>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.streamsets</groupId>
+      <artifactId>streamsets-datacollector-cluster-hdfs-protolib</artifactId>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+
   </dependencies>
 
   <build>
@@ -419,14 +453,10 @@
             </goals>
             <configuration>
               <sources>
-                <source>${basedir}/../hdfs-protolib/src/test/java</source>
                 <source>${basedir}/../mapreduce-protolib/src/test/java</source>
                 <source>${basedir}/../hive-protolib/src/test/java</source>
                 <source>${basedir}/../hbase-protolib/src/test/java</source>
                 <source>${basedir}/../flume-protolib/src/test/java</source>
-                <source>${basedir}/../kafka_source-protolib/src/test/java</source>
-                <source>${basedir}/../kafka_target-protolib/src/test/java</source>
-                <source>${basedir}/../cluster-hdfs-protolib/src/test/java</source>
               </sources>
             </configuration>
           </execution>
@@ -439,9 +469,6 @@
             <configuration>
               <resources>
                 <resource>
-                  <directory>${basedir}/../hdfs-protolib/src/test/resources</directory>
-                </resource>
-                <resource>
                   <directory>${basedir}/../mapreduce-protolib/src/test/resources</directory>
                 </resource>
                 <resource>
@@ -452,15 +479,6 @@
                 </resource>
                 <resource>
                   <directory>${basedir}/../flume-protolib/src/test/resources</directory>
-                </resource>
-                <resource>
-                  <directory>${basedir}/../kafka_source-protolib/src/test/resources</directory>
-                </resource>
-                <resource>
-                  <directory>${basedir}/../kafka_target-protolib/src/test/resources</directory>
-                </resource>
-                <resource>
-                  <directory>${basedir}/../cluster-hdfs-protolib/src/test/resources</directory>
                 </resource>
               </resources>
             </configuration>

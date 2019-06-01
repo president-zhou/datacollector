@@ -60,7 +60,13 @@ public class StageDefinitionBuilder {
   boolean variableOutputStreams = false;
   int outputStreams;
   String outputStreamLabelProviderClass = null;
-  List<ExecutionMode> executionModes = Arrays.asList(ExecutionMode.CLUSTER_YARN_STREAMING, ExecutionMode.STANDALONE, ExecutionMode.CLUSTER_BATCH);
+  List<ExecutionMode> executionModes = Arrays.asList(
+      ExecutionMode.CLUSTER_YARN_STREAMING,
+      ExecutionMode.STANDALONE,
+      ExecutionMode.CLUSTER_BATCH,
+      ExecutionMode.BATCH,
+      ExecutionMode.STREAMING
+  );
   boolean recordsByRef = false;
   StageUpgrader upgrader = new StageUpgrader.Default();
   List<String> libJarsRegex = Collections.emptyList();
@@ -214,7 +220,8 @@ public class StageDefinitionBuilder {
       false,
       false,
       -1,
-      null
+      null,
+       Collections.emptyList()
     );
   }
 

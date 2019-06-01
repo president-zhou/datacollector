@@ -83,6 +83,7 @@ angular
       isPipelineRunning: false,
       sourceExists: false,
       stageLibraries: [],
+      legacyStageLibs: [],
       pipelineGraphData: {},
       previewMode: false,
       snapshotMode: false,
@@ -825,6 +826,7 @@ angular
         //Definitions
         $scope.pipelineConfigDefinition = pipelineService.getPipelineConfigDefinition();
         $scope.stageLibraries = pipelineService.getStageDefinitions();
+        $scope.legacyStageLibs = pipelineService.getLegacyStageLibs();
 
         //Pipelines
 
@@ -2206,6 +2208,14 @@ angular
 
           if (status.attributes && status.attributes.issues) {
             $rootScope.common.errors = [status.attributes.issues];
+          } else if(status.attributes["ERROR_MESSAGE"]) {
+            $rootScope.common.errors = [{
+              RemoteException: {
+                antennaDoctorMessages: status.attributes['ANTENNA_DOCTOR_MESSAGES'],
+                localizedMessage: 'Pipeline Status: ' + $scope.activeConfigStatus.status + ': ' + status.attributes['ERROR_MESSAGE'],
+                stackTrace: status.attributes['ERROR_STACKTRACE']
+              }
+            }];
           } else {
             $rootScope.common.errors = ['Pipeline Status: ' + $scope.activeConfigStatus.status + ': ' +
             $scope.activeConfigStatus.message];

@@ -30,8 +30,8 @@ import com.streamsets.pipeline.api.lineage.EndPointType;
 import com.streamsets.pipeline.api.lineage.LineageEvent;
 import com.streamsets.pipeline.api.lineage.LineageEventType;
 import com.streamsets.pipeline.api.lineage.LineageSpecificAttribute;
-import com.streamsets.pipeline.lib.event.CommonEvents;
 import com.streamsets.pipeline.lib.event.EventCreator;
+import com.streamsets.pipeline.lib.event.NoMoreDataEvent;
 import com.streamsets.pipeline.lib.jdbc.HikariPoolConfigBean;
 import com.streamsets.pipeline.lib.jdbc.JdbcErrors;
 import com.streamsets.pipeline.lib.jdbc.JdbcUtil;
@@ -225,7 +225,7 @@ public class JdbcSource extends BaseSource {
       }
     } catch (StageException e) {
       LOG.error(JdbcErrors.JDBC_00.getMessage(), e.toString(), e);
-      issues.add(context.createConfigIssue(Groups.JDBC.name(), CONNECTION_STRING, JdbcErrors.JDBC_00, e.toString()));
+      issues.add(context.createConfigIssue(Groups.JDBC.name(), CONNECTION_STRING, e.getErrorCode(), e.getParams()));
     }
 
     // Don't proceed with validation query if there are issues or if validation is disabled
@@ -511,9 +511,9 @@ public class JdbcSource extends BaseSource {
   }
 
   private void generateNoMoreDataEvent() {
-    CommonEvents.NO_MORE_DATA.create(getContext())
-      .with("record-count", noMoreDataRecordCount)
-      .createAndSend();
+    NoMoreDataEvent.EVENT_CREATOR.create(getContext())
+        .with(NoMoreDataEvent.RECORD_COUNT, noMoreDataRecordCount)
+        .createAndSend();
     noMoreDataRecordCount = 0;
   }
 
